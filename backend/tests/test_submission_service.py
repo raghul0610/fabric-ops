@@ -131,3 +131,30 @@ def test_admin_can_review_submission():
     assert result["decision"] == "APPROVED"
     assert repository.task["state"] == "APPROVED"
     assert service.audit.records[0]["action"] == "SUBMISSION_APPROVED"
+
+
+def test_lead_cannot_access_submission_from_another_team():
+    repository = FakeRepository("SUBMITTED")
+    repository.submission = {
+        "id": uuid4(),
+        "task_id": repository.task["id"],
+        "submitted_by": repository.task["assignee_id"],
+        "content": "work",
+    }
+    outsider_lead = uuid4()
+    service = SubmissionService(repository, FakeAudit())
+
+    with pytest.raises(HTTPException) as exc:
+        service.get(repository.submission["id"], outsider_lead, "LEAD")
+
+    assert exc.value.status_code == 403
+
+def test_lead_cannot_list_submissions_from_another_team():
+    repository = FakeRepository("SUBMITTED")
+    outsider_lead = uuid4()
+    service = SubmissionService(repository, FakeAudit())
+
+    with pytest.raises(HTTPException) as exc:
+        service.list_for_task(repository.task["id"], outsider_lead, "LEAD")
+
+    assert exc.value.status_code == 403
