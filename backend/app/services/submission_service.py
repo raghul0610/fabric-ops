@@ -20,16 +20,21 @@ class SubmissionService:
         if str(task["state"]) != "IN_PROGRESS":
             raise HTTPException(status_code=400, detail="Only in-progress tasks can be submitted")
 
-        submission = self.repository.create(task_id, actor_id, content)
-        self.repository.set_task_state(task_id, "SUBMITTED")
-        self.audit.record(
-            actor_id=actor_id,
-            action="SUBMISSION_CREATED",
-            entity_type="submission",
-            entity_id=submission["id"],
-            metadata={"task_id": str(task_id)},
-        )
-        return submission
+        try:
+            submission = self.repository.create(task_id, actor_id, content)
+            self.repository.set_task_state(task_id, "SUBMITTED")
+            self.audit.record(
+                actor_id=actor_id,
+                action="SUBMISSION_CREATED",
+                entity_type="submission",
+                entity_id=submission["id"],
+                metadata={"task_id": str(task_id)},
+            )
+            self.repository.commit()
+            return submission
+        except Exception:
+            self.repository.rollback()
+            raise
 
     def get(self, submission_id: UUID, actor_id: UUID, actor_role: str):
         submission = self.repository.get(submission_id)
@@ -81,21 +86,26 @@ class SubmissionService:
         if str(task["state"]) != "SUBMITTED":
             raise HTTPException(status_code=400, detail="Only submitted tasks can be reviewed")
 
-        review = self.repository.create_review(
-            submission_id,
-            actor_id,
-            decision,
-            feedback,
-        )
-        self.repository.set_task_state(
-            task["id"],
-            "APPROVED" if decision == "APPROVED" else "REJECTED",
-        )
-        self.audit.record(
-            actor_id=actor_id,
-            action=f"SUBMISSION_{decision}",
-            entity_type="submission",
-            entity_id=submission_id,
-            metadata={"task_id": str(task["id"]), "review_id": str(review["id"])},
-        )
-        return review
+        try:
+            review = self.repository.create_review(
+                submission_id,
+                actor_id,
+                decision,
+                feedback,
+            )
+            self.repository.set_task_state(
+                task["id"],
+                "APPROVED" if decision == "APPROVED" else "REJECTED",
+            )
+            self.audit.record(
+                actor_id=actor_id,
+                action=f"SUBMISSION_{decision}",
+                entity_type="submission",
+                entity_id=submission_id,
+                metadata={"task_id": str(task["id"]), "review_id": str(review["id"])},
+            )
+            self.repository.commit()
+            return review
+        except Exception:
+            self.repository.rollback()
+            raise
