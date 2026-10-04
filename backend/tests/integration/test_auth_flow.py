@@ -26,8 +26,8 @@ def test_supabase_auth_to_fastapi() -> None:
         if not value
     ]
     if missing:
-        pytest.fail(
-            "Missing integration-test environment variables: "
+        pytest.skip(
+            "Integration test requires environment variables: "
             + ", ".join(missing)
         )
 
