@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";\nimport type { FormEvent } from "react";
 import { supabase } from "./lib/supabase";
-import { api, ApiError } from "./lib/api";
+import { api } from "./lib/api";
 import type { Event, EventState, Review, Role, Submission, Task, TaskState, Team, TeamMember } from "./types";
 
 type SessionUser = { id: string; email?: string | null };
@@ -172,7 +172,7 @@ function App() {
               teams={teams}
               selectedTeam={selectedTeam}
               onSelect={setSelectedTeamId}
-              onRefresh={() => selectedEventId && loadTeams(selectedEventId)}
+              onRefresh={() => { if (selectedEventId) return loadTeams(selectedEventId); }}
               onMessage={setMessage}
             />
           )}
@@ -185,7 +185,7 @@ function App() {
               selectedTask={selectedTask}
               userId={user.id}
               onSelect={setSelectedTaskId}
-              onRefresh={() => selectedTeamId && loadTasks(selectedTeamId)}
+              onRefresh={() => { if (selectedTeamId) return loadTasks(selectedTeamId); }}
               onMessage={setMessage}
             />
           )}
@@ -194,7 +194,7 @@ function App() {
               role={role}
               task={selectedTask}
               submissions={submissions}
-              onRefresh={() => selectedTaskId && loadSubmissions(selectedTaskId)}
+              onRefresh={() => { if (selectedTaskId) return loadSubmissions(selectedTaskId); }}
               onMessage={setMessage}
             />
           )}
