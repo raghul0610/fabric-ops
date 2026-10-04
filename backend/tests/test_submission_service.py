@@ -39,6 +39,9 @@ class FakeRepository:
     def is_team_member(self, team_id, user_id):
         return user_id == self.task["assignee_id"] and team_id == self.task["team_id"]
 
+    def set_task_state(self, task_id, state):
+        self.task["state"] = state
+
     def create_review(self, submission_id, reviewer_id, decision, feedback):
         self.review = {
             "id": uuid4(),
@@ -70,6 +73,7 @@ def test_member_can_create_submission_for_in_progress_task():
     )
 
     assert result["submitted_by"] == repository.task["assignee_id"]
+    assert repository.task["state"] == "SUBMITTED"
     assert audit.records[0]["action"] == "SUBMISSION_CREATED"
 
 
@@ -125,4 +129,5 @@ def test_admin_can_review_submission():
     )
 
     assert result["decision"] == "APPROVED"
+    assert repository.task["state"] == "APPROVED"
     assert service.audit.records[0]["action"] == "SUBMISSION_APPROVED"
