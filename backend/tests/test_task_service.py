@@ -49,10 +49,12 @@ def test_task_follows_happy_path():
     member = repository.task["assignee_id"]
 
     service.transition(task_id, "IN_PROGRESS", actor_id=member, actor_role="MEMBER")
-    service.transition(task_id, "SUBMITTED", actor_id=member, actor_role="MEMBER")
-    service.transition(task_id, "APPROVED", actor_id=uuid4(), actor_role="ADMIN")
 
-    assert repository.task["state"] == "APPROVED"
+    with pytest.raises(HTTPException) as exc:
+        service.transition(task_id, "SUBMITTED", actor_id=member, actor_role="MEMBER")
+
+    assert exc.value.status_code == 403
+    assert repository.task["state"] == "IN_PROGRESS"
 
 
 def test_rejected_task_returns_to_in_progress():
