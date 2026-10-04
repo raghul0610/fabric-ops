@@ -28,7 +28,7 @@ class SubmissionRepository:
         ).first() is not None
 
     def create(self, task_id: UUID, submitted_by: UUID, content: str):
-        row = self.db.execute(
+        return self.db.execute(
             text("""
                 INSERT INTO public.submissions (task_id, submitted_by, content)
                 VALUES (:task_id, :submitted_by, :content)
@@ -40,8 +40,6 @@ class SubmissionRepository:
                 "content": content,
             },
         ).mappings().one()
-        self.db.commit()
-        return row
 
     def get(self, submission_id: UUID):
         return self.db.execute(
@@ -73,7 +71,6 @@ class SubmissionRepository:
             """),
             {"task_id": str(task_id), "state": state},
         )
-        self.db.commit()
 
     def create_review(
         self,
@@ -82,7 +79,7 @@ class SubmissionRepository:
         decision: str,
         feedback: str | None,
     ):
-        row = self.db.execute(
+        return self.db.execute(
             text("""
                 INSERT INTO public.reviews
                     (submission_id, reviewer_id, decision, feedback)
@@ -98,8 +95,6 @@ class SubmissionRepository:
                 "feedback": feedback,
             },
         ).mappings().one()
-        self.db.commit()
-        return row
 
     def list_reviews(self, submission_id: UUID):
         return self.db.execute(
@@ -112,3 +107,9 @@ class SubmissionRepository:
             """),
             {"submission_id": str(submission_id)},
         ).mappings().all()
+
+    def commit(self) -> None:
+        self.db.commit()
+
+    def rollback(self) -> None:
+        self.db.rollback()
