@@ -12,6 +12,15 @@ class FakeRepository:
         self.members = set()
         self.db = type("DB", (), {"rollback": lambda self: None})()
 
+    def event_exists(self, event_id):
+        return True
+
+    def team_name_exists(self, event_id, name):
+        return any(
+            team["event_id"] == event_id and team["name"] == name
+            for team in self.teams.values()
+        )
+
     def create(self, **kwargs):
         team = {
             "id": uuid4(),
@@ -41,7 +50,11 @@ class FakeRepository:
         }
 
     def remove_member(self, **kwargs):
-        return (kwargs["team_id"], kwargs["user_id"]) in self.members
+        key = (kwargs["team_id"], kwargs["user_id"])
+        if key in self.members:
+            self.members.remove(key)
+            return True
+        return False
 
     def list_members(self, team_id):
         return []
@@ -55,6 +68,19 @@ def test_admin_can_create_team():
     team = service.create(event_id=event_id, name="Red")
 
     assert team["name"] == "Red"
+
+
+def test_duplicate_team_name_is_rejected():
+    repository = FakeRepository()
+    service = TeamService(repository)
+    event_id = uuid4()
+
+    service.create(event_id=event_id, name="Red")
+
+    with pytest.raises(HTTPException) as exc:
+        service.create(event_id=event_id, name="Red")
+
+    assert exc.value.status_code == 409
 
 
 def test_lead_can_manage_team_members_when_on_team():
