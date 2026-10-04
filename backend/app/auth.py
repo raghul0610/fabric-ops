@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+import httpx
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from supabase import Client, create_client
 
 from app.config import get_settings
 from app.db import get_db
@@ -21,25 +21,44 @@ class CurrentUser:
     role: str
 
 
-def _client() -> Client:
-    settings = get_settings()
-    return create_client(settings.supabase_url, settings.supabase_publishable_key)
-
-
 def get_current_user(authorization: str | None = Header(default=None)) -> AuthenticatedUser:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+
     token = authorization.removeprefix("Bearer ").strip()
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+
+    settings = get_settings()
     try:
-        response = _client().auth.get_user(token)
-        user = response.user
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token") from exc
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
-    return AuthenticatedUser(id=UUID(str(user.id)))
+        response = httpx.get(
+            f"{settings.supabase_url.rstrip('/')}/auth/v1/user",
+            headers={
+                "apikey": settings.supabase_publishable_key,
+                "Authorization": f"Bearer {token}",
+            },
+            timeout=5.0,
+        )
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid access token",
+            )
+        user = response.json()
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service unavailable",
+        ) from exc
+
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid access token",
+        )
+
+    return AuthenticatedUser(id=UUID(str(user_id)))
 
 
 def require_authenticated_user(
