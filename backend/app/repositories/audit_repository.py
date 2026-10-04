@@ -32,4 +32,3 @@ class AuditRepository:
                 "metadata": __import__("json").dumps(metadata),
             },
         )
-        self.db.commit()
