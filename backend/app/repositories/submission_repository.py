@@ -18,6 +18,15 @@ class SubmissionRepository:
             {"task_id": str(task_id)},
         ).mappings().first()
 
+    def is_team_member(self, team_id: UUID, user_id: UUID) -> bool:
+        return self.db.execute(
+            text("""
+                SELECT 1 FROM public.team_members
+                WHERE team_id = :team_id AND user_id = :user_id
+            """),
+            {"team_id": str(team_id), "user_id": str(user_id)},
+        ).first() is not None
+
     def create(self, task_id: UUID, submitted_by: UUID, content: str):
         row = self.db.execute(
             text("""
