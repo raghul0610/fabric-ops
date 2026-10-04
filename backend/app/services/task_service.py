@@ -101,10 +101,10 @@ class TaskService:
                 detail=f"Invalid task transition: {current_state} -> {target_state}",
             )
 
-        if actor_role == "MEMBER" and target_state not in {"IN_PROGRESS", "SUBMITTED"}:
+        if actor_role == "MEMBER" and target_state not in {"IN_PROGRESS"}:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Members may only work on or submit assigned tasks",
+                detail="Members may only start or resume assigned tasks",
             )
 
         if actor_role == "LEAD" and target_state not in {"APPROVED", "REJECTED"}:
