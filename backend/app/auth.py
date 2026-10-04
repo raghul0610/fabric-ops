@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-import httpx
+import jwt
 from fastapi import Depends, Header, HTTPException, status
+from jwt import PyJWKClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -30,35 +31,43 @@ def get_current_user(authorization: str | None = Header(default=None)) -> Authen
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
 
     settings = get_settings()
+    issuer = f"{settings.supabase_url.rstrip('/')}/auth/v1"
+    jwks_url = f"{issuer}/.well-known/jwks.json"
+
     try:
-        response = httpx.get(
-            f"{settings.supabase_url.rstrip('/')}/auth/v1/user",
-            headers={
-                "apikey": settings.supabase_publishable_key,
-                "Authorization": f"Bearer {token}",
-            },
-            timeout=5.0,
+        signing_key = PyJWKClient(jwks_url).get_signing_key_from_jwt(token)
+        claims = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["ES256"],
+            audience="authenticated",
+            issuer=issuer,
         )
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid access token",
-            )
-        user = response.json()
-    except httpx.HTTPError as exc:
+    except jwt.PyJWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid access token",
+        ) from exc
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Authentication service unavailable",
         ) from exc
 
-    user_id = user.get("id")
+    user_id = claims.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid access token",
         )
 
-    return AuthenticatedUser(id=UUID(str(user_id)))
+    try:
+        return AuthenticatedUser(id=UUID(str(user_id)))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid access token",
+        ) from exc
 
 
 def require_authenticated_user(
@@ -94,6 +103,7 @@ def require_role(*allowed_roles: str):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient role",
             )
+
         return user
 
     return dependency
