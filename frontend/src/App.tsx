@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";\nimport type { FormEvent } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { supabase } from "./lib/supabase";
 import { api } from "./lib/api";
 import type { Event, EventState, Review, Role, Submission, Task, TaskState, Team, TeamMember } from "./types";
