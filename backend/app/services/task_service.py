@@ -30,22 +30,13 @@ class TaskService:
         actor_role: str,
     ):
         if not self.repository.team_exists_in_event(team_id, event_id):
-            raise HTTPException(
-                status_code=404,
-                detail="Team not found for event",
-            )
+            raise HTTPException(status_code=404, detail="Team not found for event")
 
         if not self.repository.is_team_member(team_id, assignee_id):
-            raise HTTPException(
-                status_code=400,
-                detail="Assignee must be a member of the team",
-            )
+            raise HTTPException(status_code=400, detail="Assignee must be a member of the team")
 
         if actor_role != "ADMIN" and not self.repository.is_team_member(team_id, actor_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient team permissions",
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient team permissions")
 
         return self.repository.create(
             event_id=event_id,
@@ -95,28 +86,28 @@ class TaskService:
                 detail="Insufficient task permissions",
             )
 
+        if target_state in {"APPROVED", "REJECTED"}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task review state must be changed through the submission review endpoint",
+            )
+
         if target_state not in ALLOWED_TRANSITIONS.get(current_state, set()):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid task transition: {current_state} -> {target_state}",
             )
 
-        if actor_role == "MEMBER" and target_state not in {"IN_PROGRESS"}:
+        if actor_role == "MEMBER" and target_state != "IN_PROGRESS":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Members may only start or resume assigned tasks",
             )
 
-        if actor_role == "LEAD" and target_state not in {"APPROVED", "REJECTED"}:
+        if actor_role == "LEAD":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Leads may only approve or reject submitted tasks",
-            )
-
-        if target_state in {"APPROVED", "REJECTED"} and current_state != "SUBMITTED":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only submitted tasks can be reviewed",
+                detail="Leads must use submission review to approve or reject tasks",
             )
 
         return self.repository.update_state(task_id, target_state)
