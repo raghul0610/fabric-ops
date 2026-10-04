@@ -8,6 +8,22 @@ class TeamRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
+    def event_exists(self, event_id: UUID) -> bool:
+        return self.db.execute(
+            text("SELECT 1 FROM public.events WHERE id = :event_id"),
+            {"event_id": str(event_id)},
+        ).first() is not None
+
+    def team_name_exists(self, event_id: UUID, name: str) -> bool:
+        return self.db.execute(
+            text("""
+                SELECT 1
+                FROM public.teams
+                WHERE event_id = :event_id AND name = :name
+            """),
+            {"event_id": str(event_id), "name": name},
+        ).first() is not None
+
     def create(self, *, event_id: UUID, name: str):
         row = self.db.execute(
             text("""
