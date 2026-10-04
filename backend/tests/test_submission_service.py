@@ -17,6 +17,9 @@ class FakeRepository:
         }
         self.submission = None
         self.review = None
+        self.commit_count = 0
+        self.rollback_count = 0
+        self.fail_on_commit = False
 
     def get_task(self, task_id):
         return self.task if task_id == self.task["id"] else None
@@ -52,6 +55,14 @@ class FakeRepository:
         }
         return self.review
 
+    def commit(self):
+        self.commit_count += 1
+        if self.fail_on_commit:
+            raise RuntimeError("commit failed")
+
+    def rollback(self):
+        self.rollback_count += 1
+
 
 class FakeAudit:
     def __init__(self):
@@ -75,6 +86,23 @@ def test_member_can_create_submission_for_in_progress_task():
     assert result["submitted_by"] == repository.task["assignee_id"]
     assert repository.task["state"] == "SUBMITTED"
     assert audit.records[0]["action"] == "SUBMISSION_CREATED"
+    assert repository.commit_count == 1
+    assert repository.rollback_count == 0
+
+
+def test_submission_rolls_back_when_commit_fails():
+    repository = FakeRepository()
+    repository.fail_on_commit = True
+    service = SubmissionService(repository, FakeAudit())
+
+    with pytest.raises(RuntimeError, match="commit failed"):
+        service.create(
+            repository.task["id"],
+            repository.task["assignee_id"],
+            "work",
+        )
+
+    assert repository.rollback_count == 1
 
 
 def test_non_assignee_cannot_submit():
@@ -85,6 +113,7 @@ def test_non_assignee_cannot_submit():
         service.create(repository.task["id"], uuid4(), "work")
 
     assert exc.value.status_code == 403
+    assert repository.commit_count == 0
 
 
 def test_reviewer_cannot_be_submitter():
@@ -131,6 +160,31 @@ def test_admin_can_review_submission():
     assert result["decision"] == "APPROVED"
     assert repository.task["state"] == "APPROVED"
     assert service.audit.records[0]["action"] == "SUBMISSION_APPROVED"
+    assert repository.commit_count == 1
+    assert repository.rollback_count == 0
+
+
+def test_review_rolls_back_when_commit_fails():
+    repository = FakeRepository("SUBMITTED")
+    repository.submission = {
+        "id": uuid4(),
+        "task_id": repository.task["id"],
+        "submitted_by": repository.task["assignee_id"],
+        "content": "work",
+    }
+    repository.fail_on_commit = True
+    service = SubmissionService(repository, FakeAudit())
+
+    with pytest.raises(RuntimeError, match="commit failed"):
+        service.review(
+            repository.submission["id"],
+            uuid4(),
+            "ADMIN",
+            "APPROVED",
+            "Looks good",
+        )
+
+    assert repository.rollback_count == 1
 
 
 def test_lead_cannot_access_submission_from_another_team():
@@ -148,6 +202,7 @@ def test_lead_cannot_access_submission_from_another_team():
         service.get(repository.submission["id"], outsider_lead, "LEAD")
 
     assert exc.value.status_code == 403
+
 
 def test_lead_cannot_list_submissions_from_another_team():
     repository = FakeRepository("SUBMITTED")
