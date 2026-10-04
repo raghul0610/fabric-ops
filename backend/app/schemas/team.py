@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -18,7 +19,7 @@ class TeamMemberResponse(BaseModel):
     team_id: UUID
     user_id: UUID
     membership_role: str
-    created_at: object
+    created_at: datetime
 
 
 class TeamResponse(BaseModel):
@@ -27,4 +28,4 @@ class TeamResponse(BaseModel):
     id: UUID
     event_id: UUID
     name: str
-    created_at: object
+    created_at: datetime
