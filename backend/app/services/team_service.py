@@ -10,11 +10,15 @@ class TeamService:
         self.repository = repository
 
     def create(self, *, event_id: UUID, name: str):
-        if self.repository.get(event_id):
+        if not self.repository.event_exists(event_id):
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        if self.repository.team_name_exists(event_id, name):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Team already exists",
+                detail="Team name already exists for this event",
             )
+
         return self.repository.create(event_id=event_id, name=name)
 
     def get(self, team_id: UUID):
@@ -24,6 +28,8 @@ class TeamService:
         return team
 
     def list_for_event(self, event_id: UUID, *, user_id: UUID, is_admin: bool):
+        if not self.repository.event_exists(event_id):
+            raise HTTPException(status_code=404, detail="Event not found")
         return self.repository.list_for_event(
             event_id, user_id=user_id, is_admin=is_admin
         )
