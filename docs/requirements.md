@@ -1,38 +1,57 @@
-# FABRIC Ops V1 Requirements
+# V1 Requirements
 
-## Objective
-Create a single source of truth for FABRIC operational work so event work can be assigned, executed, reviewed, and audited without fragmented manual tracking.
+## Functional requirements
 
-## Functional Requirements
-- Authentication is required for protected resources.
-- Authorization is enforced server-side.
-- Authorized users can create/update events and teams.
-- Teams belong to an event in V1.
-- Authorized users can create and assign tasks.
-- Tasks have priority, deadline, assignee, and lifecycle state.
-- Members can access tasks assigned to them.
-- Members can submit eligible work.
-- Reviewers can approve or reject submissions.
-- Rejected submissions can return to in-progress.
-- Important mutations create audit records.
+### Authentication
+- Users authenticate through Supabase Auth.
+- Every protected API request requires an authenticated identity.
+- Application role is evaluated server-side.
 
-## Non-Functional Requirements
-- Server-side RBAC
-- Input validation
-- Database constraints
-- No secrets in the repository
-- Deterministic workflow transitions
-- Explicit API errors
-- Transactional consistency for multi-record state changes
-- Modular backend structure
-- Small frontend components
-- Automated CI checks
+### Authorization
+- ADMIN has organization/event administration permissions.
+- LEAD is restricted to permitted event/team scope.
+- MEMBER can operate only on permitted work.
+- A user cannot approve their own submission.
+- Unauthorized operations are rejected by the backend.
 
-## V1 Success Criteria
-1. Admin/lead creates an event.
-2. Team is created.
-3. Member is added.
-4. Task is assigned.
-5. Member starts and submits it.
-6. Reviewer approves/rejects.
-7. Important actions are visible in audit history.
+### Events
+- Create and view permitted events.
+- Update event metadata.
+- Transition events only through valid lifecycle states.
+
+### Teams
+- Create a team within an event.
+- Add/remove team members.
+- Enforce event/team scope.
+
+### Tasks
+- Create a task within an event/team.
+- Assign only to an eligible team member.
+- View permitted tasks.
+- Enforce valid task transitions.
+
+### Submissions and reviews
+- A permitted member can submit work for an assigned task.
+- A permitted reviewer can approve or reject a submission.
+- Rejection returns the task to IN_PROGRESS.
+- Review decisions are attributable to an authenticated user.
+
+### Audit
+- Record important state-changing operations.
+- Store actor, action, target, and timestamp.
+- Audit records are append-oriented.
+
+## Non-functional requirements
+
+- Backend authorization is authoritative.
+- Secrets are never committed.
+- Supabase service-role credentials are never exposed to the browser.
+- API input is validated.
+- Database changes are migration-controlled.
+- Critical business rules have automated tests.
+- Frontend, API, and persistence concerns remain separable.
+- V1 remains deployable as one application.
+
+## Acceptance
+
+A feature is complete only when its API, authorization, state transition, persistence, error handling, and tests agree with the domain rules.

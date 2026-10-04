@@ -1,70 +1,79 @@
-# FABRIC Ops V1 Data Model
+# V1 Data Model
 
-## users
-id UUID PK
-name text
-email text UNIQUE
-role enum(admin, lead, member)
-created_at timestamp
+## User
+Authenticated application user.
 
-## events
-id UUID PK
-name text
-description text nullable
-status enum(draft, planned, active, completed, cancelled)
-start_at timestamp nullable
-end_at timestamp nullable
-created_by UUID → users.id
-created_at timestamp
-updated_at timestamp
+Key data: id, role, created_at.
 
-## teams
-id UUID PK
-event_id UUID → events.id
-name text
-created_at timestamp
-UNIQUE(event_id, name)
+Authentication identity is owned by Supabase Auth.
 
-## team_members
-team_id UUID → teams.id
-user_id UUID → users.id
-joined_at timestamp
-PRIMARY KEY(team_id, user_id)
+## Event
+Operational event.
 
-## tasks
-id UUID PK
-team_id UUID → teams.id
-title text
-description text nullable
-assigned_to UUID → users.id
-priority enum(low, medium, high)
-status enum(todo, in_progress, submitted, approved, rejected)
-due_at timestamp nullable
-created_by UUID → users.id
-created_at timestamp
-updated_at timestamp
+Key data: id, name, description, state, starts_at, ends_at, created_at, updated_at.
 
-## submissions
-id UUID PK
-task_id UUID → tasks.id
-submitted_by UUID → users.id
-content text
-status enum(pending, approved, rejected)
-reviewed_by UUID → users.id nullable
-reviewed_at timestamp nullable
-created_at timestamp
+## Team
+Belongs to one event.
 
-## audit_logs
-id UUID PK
-actor_id UUID → users.id
-action text
-entity_type text
-entity_id UUID
-metadata JSONB nullable
-created_at timestamp
+Key data: id, event_id, name, created_at.
+
+## TeamMember
+Associates a user with a team.
+
+Key data: team_id, user_id, membership_role, created_at.
+
+A user/team pair must be unique.
+
+## Task
+Unit of operational work.
+
+Key data: id, event_id, team_id, title, description, assignee_id, state, created_at, updated_at.
+
+The assignee must belong to the task's team.
+
+## Submission
+Work submitted for a task.
+
+Key data: id, task_id, submitted_by, content/reference, created_at.
+
+## Review
+Review decision for a submission.
+
+Key data: id, submission_id, reviewer_id, decision, feedback, created_at.
+
+The reviewer must be authorized and must differ from the submitter.
+
+## AuditLog
+Important domain mutation record.
+
+Key data: id, actor_id, action, entity_type, entity_id, metadata, created_at.
+
+Audit history is append-oriented and not ordinary mutable business state.
 
 ## Relationships
-User ──< TeamMember >── Team ──> Event
-User ──> Task (assignment)
-User ──> Submission (submit/review)
-Team ──< Task ──< Submission
+
+Event 1 → N Teams
+
+Team N ↔ N Users through TeamMember
+
+Event 1 → N Tasks
+
+Team 1 → N Tasks
+
+User 1 → N assigned Tasks
+
+Task 1 → N Submissions
+
+Submission 1 → N Reviews
+
+User 1 → N AuditLogs
+
+## Integrity rules
+
+- Team belongs to an existing event.
+- Task belongs to the same event as its team.
+- Assignee belongs to the task's team.
+- Submission references an existing task.
+- Review references an existing submission.
+- Reviewer is authorized for the task/event.
+- Reviewer differs from submitter.
