@@ -276,12 +276,38 @@ function EventsPanel({ role, events, selectedEvent, onSelect, onRefresh, onMessa
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [busy, setBusy] = useState(false);
+  const [dateError, setDateError] = useState("");
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
+    setDateError("");
+
+    if (!startsAt || !endsAt) {
+      setDateError("Start and end date/time are required.");
+      return;
+    }
+
+    const start = new Date(startsAt);
+    const end = new Date(endsAt);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      setDateError("Enter valid start and end date/time values.");
+      return;
+    }
+
+    if (end <= start) {
+      setDateError("End date/time must be after the start date/time.");
+      return;
+    }
+
     setBusy(true);
     try {
-      await api.post<Event>("/events", { name, description: description || null, starts_at: new Date(startsAt).toISOString(), ends_at: new Date(endsAt).toISOString() });
+      await api.post<Event>("/events", {
+        name,
+        description: description || null,
+        starts_at: start.toISOString(),
+        ends_at: end.toISOString(),
+      });
       setName(""); setDescription(""); setStartsAt(""); setEndsAt("");
       await onRefresh();
       onMessage("Event created.");
@@ -317,8 +343,9 @@ function EventsPanel({ role, events, selectedEvent, onSelect, onRefresh, onMessa
             <h2 className="font-semibold text-white">Create event</h2>
             <input className="input" placeholder="Event name" value={name} onChange={(e) => setName(e.target.value)} required />
             <textarea className="input min-h-24" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-            <input className="input" type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} required />
-            <input className="input" type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} required />
+            <DateTimeField label="Start" value={startsAt} onChange={setStartsAt} />
+            <DateTimeField label="End" value={endsAt} onChange={setEndsAt} min={startsAt} />
+            {dateError && <p className="rounded-lg border border-rose-900 bg-rose-950/40 px-3 py-2 text-sm text-rose-300">{dateError}</p>}
             <button className="btn-primary w-full" disabled={busy}>{busy ? "Creating…" : "Create event"}</button>
           </form>
         )}
@@ -334,6 +361,61 @@ function EventsPanel({ role, events, selectedEvent, onSelect, onRefresh, onMessa
         </div>
       </div>}
     </section>
+  );
+}
+
+function DateTimeField({
+  label,
+  value,
+  onChange,
+  min,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  min?: string;
+}) {
+  const [date, time] = value.split("T");
+  const minDate = min?.split("T")[0];
+  const minTime = min?.split("T")[1];
+
+  const updateDate = (nextDate: string) => {
+    onChange(nextDate && time ? nextDate + "T" + time : nextDate);
+  };
+
+  const updateTime = (nextTime: string) => {
+    onChange(date && nextTime ? date + "T" + nextTime : nextTime);
+  };
+
+  return (
+    <div className="space-y-2">
+      <span className="block text-sm font-medium text-slate-300">{label}</span>
+      <div className="grid grid-cols-[1fr_0.8fr] gap-2">
+        <label className="relative">
+          <span className="sr-only">{label} date</span>
+          <input
+            className="input w-full"
+            type="date"
+            value={date ?? ""}
+            min={minDate}
+            onChange={(e) => updateDate(e.target.value)}
+            required
+          />
+        </label>
+        <label className="relative">
+          <span className="sr-only">{label} time</span>
+          <input
+            className="input w-full"
+            type="time"
+            value={time ?? ""}
+            min={minDate === date ? minTime : undefined}
+            step={300}
+            onChange={(e) => updateTime(e.target.value)}
+            required
+          />
+        </label>
+      </div>
+    </div>
   );
 }
 
