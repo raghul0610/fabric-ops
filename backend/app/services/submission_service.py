@@ -39,7 +39,7 @@ class SubmissionService:
         task = self.repository.get_task(submission["task_id"])
         if actor_role != "ADMIN" and actor_role != "LEAD" and submission["submitted_by"] != actor_id:
             raise HTTPException(status_code=403, detail="Insufficient submission permissions")
-        if actor_role == "LEAD" and task["team_id"] is None:
+        if actor_role == "LEAD" and not self.repository.is_team_member(task["team_id"], actor_id):
             raise HTTPException(status_code=403, detail="Insufficient submission permissions")
         return submission
 
@@ -47,7 +47,9 @@ class SubmissionService:
         task = self.repository.get_task(task_id)
         if task is None:
             raise HTTPException(status_code=404, detail="Task not found")
-        if actor_role not in {"ADMIN", "LEAD"} and task["assignee_id"] != actor_id:
+        if actor_role == "LEAD" and not self.repository.is_team_member(task["team_id"], actor_id):
+            raise HTTPException(status_code=403, detail="Insufficient submission permissions")
+        if actor_role == "MEMBER" and task["assignee_id"] != actor_id:
             raise HTTPException(status_code=403, detail="Insufficient submission permissions")
         return self.repository.list_for_task(task_id)
 
