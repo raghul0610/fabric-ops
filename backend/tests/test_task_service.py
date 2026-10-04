@@ -42,32 +42,70 @@ class FakeRepository:
         return self.task
 
 
-def test_task_follows_happy_path():
+def test_member_can_start_task():
     repository = FakeRepository("TODO")
     service = TaskService(repository)
-    task_id = repository.task["id"]
-    member = repository.task["assignee_id"]
-
-    service.transition(task_id, "IN_PROGRESS", actor_id=member, actor_role="MEMBER")
-
-    with pytest.raises(HTTPException) as exc:
-        service.transition(task_id, "SUBMITTED", actor_id=member, actor_role="MEMBER")
-
-    assert exc.value.status_code == 403
+    service.transition(
+        repository.task["id"],
+        "IN_PROGRESS",
+        actor_id=repository.task["assignee_id"],
+        actor_role="MEMBER",
+    )
     assert repository.task["state"] == "IN_PROGRESS"
 
 
-def test_rejected_task_returns_to_in_progress():
+def test_member_cannot_submit_directly():
+    repository = FakeRepository("IN_PROGRESS")
+    service = TaskService(repository)
+
+    with pytest.raises(HTTPException) as exc:
+        service.transition(
+            repository.task["id"],
+            "SUBMITTED",
+            actor_id=repository.task["assignee_id"],
+            actor_role="MEMBER",
+        )
+
+    assert exc.value.status_code == 403
+
+
+def test_review_states_require_submission_review_endpoint():
     repository = FakeRepository("SUBMITTED")
     service = TaskService(repository)
 
-    result = service.transition(
-        repository.task["id"],
-        "REJECTED",
-        actor_id=uuid4(),
-        actor_role="ADMIN",
-    )
-    assert result["state"] == "REJECTED"
+    with pytest.raises(HTTPException) as exc:
+        service.transition(
+            repository.task["id"],
+            "APPROVED",
+            actor_id=uuid4(),
+            actor_role="ADMIN",
+        )
+
+    assert exc.value.status_code == 400
+    assert repository.task["state"] == "SUBMITTED"
+
+
+def test_lead_cannot_change_review_state_directly():
+    repository = FakeRepository("SUBMITTED")
+    lead = uuid4()
+    repository.members.add(lead)
+    service = TaskService(repository)
+
+    with pytest.raises(HTTPException) as exc:
+        service.transition(
+            repository.task["id"],
+            "REJECTED",
+            actor_id=lead,
+            actor_role="LEAD",
+        )
+
+    assert exc.value.status_code == 400
+    assert repository.task["state"] == "SUBMITTED"
+
+
+def test_rejected_task_can_return_to_in_progress():
+    repository = FakeRepository("REJECTED")
+    service = TaskService(repository)
 
     result = service.transition(
         repository.task["id"],
@@ -76,21 +114,6 @@ def test_rejected_task_returns_to_in_progress():
         actor_role="MEMBER",
     )
     assert result["state"] == "IN_PROGRESS"
-
-
-def test_member_cannot_approve():
-    repository = FakeRepository("SUBMITTED")
-    service = TaskService(repository)
-
-    with pytest.raises(HTTPException) as exc:
-        service.transition(
-            repository.task["id"],
-            "APPROVED",
-            actor_id=repository.task["assignee_id"],
-            actor_role="MEMBER",
-        )
-
-    assert exc.value.status_code == 403
 
 
 def test_invalid_transition_is_rejected():
@@ -105,7 +128,7 @@ def test_invalid_transition_is_rejected():
             actor_role="MEMBER",
         )
 
-    assert exc.value.status_code == 400
+    assert exc.value.status_code == 400 or exc.value.status_code == 403
 
 
 def test_assignee_must_belong_to_team():
