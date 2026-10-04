@@ -425,8 +425,8 @@ function TasksPanel({ role, event, team, tasks, selectedTask, userId, onSelect, 
   };
 
   const allowed = TASK_TRANSITIONS[selectedTask?.state ?? "TODO"].filter((next) => {
-    if (role === "ADMIN") return true;
-    if (role === "LEAD") return next === "APPROVED" || next === "REJECTED";
+    if (role === "ADMIN") return next === "IN_PROGRESS";
+    if (role === "LEAD") return false;
     return next === "IN_PROGRESS" && selectedTask?.assignee_id === userId;
   });
 
