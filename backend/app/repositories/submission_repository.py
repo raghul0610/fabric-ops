@@ -55,6 +55,17 @@ class SubmissionRepository:
             {"task_id": str(task_id)},
         ).mappings().all()
 
+    def set_task_state(self, task_id: UUID, state: str) -> None:
+        self.db.execute(
+            text("""
+                UPDATE public.tasks
+                SET state = :state, updated_at = now()
+                WHERE id = :task_id
+            """),
+            {"task_id": str(task_id), "state": state},
+        )
+        self.db.commit()
+
     def create_review(
         self,
         submission_id: UUID,
