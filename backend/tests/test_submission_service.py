@@ -36,6 +36,9 @@ class FakeRepository:
     def list_for_task(self, task_id):
         return [self.submission] if self.submission else []
 
+    def is_team_member(self, team_id, user_id):
+        return user_id == self.task["assignee_id"] and team_id == self.task["team_id"]
+
     def create_review(self, submission_id, reviewer_id, decision, feedback):
         self.review = {
             "id": uuid4(),
