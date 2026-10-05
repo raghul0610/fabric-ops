@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.routers.ai_reviews import router as ai_reviews_router
 from app.routers.events import router as events_router
 from app.routers.health import router as health_router
 from app.routers.submissions import router as submissions_router
@@ -25,6 +26,7 @@ app.include_router(health_router)
 app.include_router(events_router)
 app.include_router(teams_router)
 app.include_router(submissions_router)
+app.include_router(ai_reviews_router)
 app.include_router(tasks_router)
 
 
