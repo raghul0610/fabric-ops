@@ -151,3 +151,56 @@ def test_lead_cannot_create_event() -> None:
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Insufficient role"
+
+
+def test_member_cannot_create_team():
+    user_id = uuid4()
+    app.dependency_overrides[get_current_app_user] = lambda: CurrentUser(
+        id=user_id,
+        role="MEMBER",
+    )
+
+    try:
+        response = client.post(f"/events/{uuid4()}/teams", json={"name": "Member team"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient role"
+
+
+def test_member_cannot_manage_team_members():
+    user_id = uuid4()
+    app.dependency_overrides[get_current_app_user] = lambda: CurrentUser(
+        id=user_id,
+        role="MEMBER",
+    )
+
+    try:
+        response = client.post(
+            f"/teams/{uuid4()}/members",
+            json={"user_id": str(uuid4()), "membership_role": "MEMBER"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient role"
+
+
+def test_member_cannot_request_ai_review():
+    user_id = uuid4()
+    app.dependency_overrides[get_current_app_user] = lambda: CurrentUser(
+        id=user_id,
+        role="MEMBER",
+    )
+
+    try:
+        response = client.post(
+            f"/submissions/{uuid4()}/ai-review",
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient role"
