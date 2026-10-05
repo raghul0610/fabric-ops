@@ -35,3 +35,19 @@ The API key must remain backend-only.
 ## Acceptance
 
 A reviewer can request an AI evaluation for a submitted task, receive a validated recommendation, and still make the final human approval/rejection decision through the existing review workflow.
+
+
+## Day 09 — Persistence and reviewer UI
+
+### Implemented
+- Added `public.ai_evaluations` to persist every AI evaluation.
+- Stored submission, requester, model, score, recommendation, summary, strengths, issues, and creation time.
+- Added reviewer-only GET endpoint:
+  `GET /submissions/{submission_id}/ai-reviews`
+- AI review requests now persist their validated result transactionally.
+- Added reviewer UI to run an AI evaluation and inspect the latest persisted result.
+- Added a "Run again" path that creates a new immutable evaluation instead of overwriting history.
+- Human APPROVED/REJECTED review remains the authoritative workflow decision.
+
+### Acceptance
+A LEAD or ADMIN can evaluate a SUBMITTED task, see the persisted AI result in the Reviews view, run another evaluation when needed, and then independently approve or reject the submission.
