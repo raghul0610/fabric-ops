@@ -165,6 +165,27 @@ class SubmissionRepository:
             {"submission_id": str(submission_id)},
         ).mappings().all()
 
+    def count_recent_ai_evaluations(
+        self,
+        submission_id: UUID,
+        requested_by: UUID,
+        cooldown_seconds: int,
+    ) -> int:
+        return int(self.db.execute(
+            text("""
+                SELECT count(*)
+                FROM public.ai_evaluations
+                WHERE submission_id = :submission_id
+                  AND requested_by = :requested_by
+                  AND created_at > now() - make_interval(secs => :cooldown_seconds)
+            """),
+            {
+                "submission_id": str(submission_id),
+                "requested_by": str(requested_by),
+                "cooldown_seconds": cooldown_seconds,
+            },
+        ).scalar_one())
+
     def commit(self) -> None:
         self.db.commit()
 
