@@ -34,26 +34,31 @@ def create_event(
 
 @router.get("", response_model=list[EventResponse])
 def list_events(
-    _: CurrentUser = Depends(require_role("ADMIN", "LEAD", "MEMBER")),
+    user: CurrentUser = Depends(require_role("ADMIN", "LEAD", "MEMBER")),
     service: EventService = Depends(get_event_service),
 ):
-    return service.list_all()
+    return service.list_all(actor_id=user.id, actor_role=user.role)
 
 
 @router.get("/{event_id}", response_model=EventResponse)
 def get_event(
     event_id: UUID,
-    _: CurrentUser = Depends(require_role("ADMIN", "LEAD", "MEMBER")),
+    user: CurrentUser = Depends(require_role("ADMIN", "LEAD", "MEMBER")),
     service: EventService = Depends(get_event_service),
 ):
-    return service.get(event_id)
+    return service.get(event_id, actor_id=user.id, actor_role=user.role)
 
 
 @router.patch("/{event_id}/state", response_model=EventResponse)
 def update_event_state(
     event_id: UUID,
     payload: EventStateUpdate,
-    _: CurrentUser = Depends(require_role("ADMIN", "LEAD")),
+    user: CurrentUser = Depends(require_role("ADMIN", "LEAD")),
     service: EventService = Depends(get_event_service),
 ):
-    return service.transition(event_id, payload.state)
+    return service.transition(
+        event_id,
+        payload.state,
+        actor_id=user.id,
+        actor_role=user.role,
+    )
