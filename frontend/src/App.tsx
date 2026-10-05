@@ -125,36 +125,41 @@ function App() {
   if (!user || !role) return <Login error={authError} />;
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <header className="border-b border-slate-800 bg-slate-950/95">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div>
-            <div className="text-lg font-semibold tracking-tight text-white">FABRIC Ops</div>
-            <div className="text-xs text-slate-500">Event operations control plane</div>
+    <div className="app-shell min-h-screen bg-slate-950 text-slate-100">
+      <header className="sticky top-0 z-20 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/40 bg-cyan-500/10 text-sm font-bold text-cyan-300 shadow-[0_0_30px_rgba(34,211,238,0.25)]">F</div>
+            <div>
+              <div className="text-lg font-semibold tracking-tight text-white">FABRIC Ops</div>
+              <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Event operations control plane</div>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-cyan-300">{role}</span>
-            <span className="hidden text-slate-400 sm:inline">{user.email ?? user.id}</span>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-300">{role}</span>
+            <span className="hidden rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300 sm:inline">{user.email ?? user.id}</span>
             <button className="btn-secondary" onClick={signOut}>Sign out</button>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[220px_1fr]">
-        <aside className="panel h-fit p-3">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[220px_1fr]">
+        <aside className="panel h-fit p-2.5 lg:sticky lg:top-24">
+          <div className="mb-2 px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Navigation</div>
           {(["overview", "events", "teams", "tasks", "reviews"] as View[]).map((item) => (
             <button
               key={item}
               onClick={() => setView(item)}
-              className={`mb-1 w-full rounded-lg px-3 py-2 text-left text-sm capitalize ${view === item ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"}`}
+              className={`nav-button group ${view === item ? "active" : ""}`}
             >
-              {item}
+              <span className="capitalize">{item}</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-600 transition-colors duration-200 group-hover:bg-cyan-300" />
             </button>
           ))}
         </aside>
 
         <main className="space-y-6">
-          {message && <div className="rounded-lg border border-cyan-900 bg-cyan-950/40 px-4 py-3 text-sm text-cyan-200">{message}</div>}
+          {message && <div className="status-banner">{message}</div>}
           {view === "overview" && <Overview role={role} events={events} tasks={tasks} />}
           {view === "events" && (
             <EventsPanel
@@ -221,14 +226,17 @@ function Login({ error }: { error: string }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-6">
-      <form onSubmit={submit} className="panel w-full max-w-md space-y-6 p-7">
-        <div>
-          <p className="text-sm font-semibold text-cyan-300">FABRIC Ops</p>
-          <h1 className="mt-2 text-2xl font-semibold text-white">Sign in</h1>
-          <p className="mt-2 text-sm text-slate-400">Use your Supabase Auth account. Application role comes from the backend user record.</p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 sm:px-6">
+      <form onSubmit={submit} className="panel w-full max-w-md space-y-6 overflow-hidden p-7 shadow-[0_0_0_1px_rgba(34,211,238,0.12),0_30px_80px_-40px_rgba(34,211,238,0.7)]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-500/40 bg-cyan-500/10 text-sm font-bold text-cyan-300">F</div>
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">FABRIC Ops</p>
+            <h1 className="mt-1 text-2xl font-semibold text-white">Sign in</h1>
+          </div>
         </div>
-        {localError && <div className="rounded-lg border border-rose-900 bg-rose-950/40 p-3 text-sm text-rose-300">{localError}</div>}
+        <p className="text-sm text-slate-400">Use your Supabase Auth account. Application role comes from the backend user record.</p>
+        {localError && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{localError}</div>}
         <label className="block space-y-2 text-sm text-slate-300">Email<input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
         <label className="block space-y-2 text-sm text-slate-300">Password<input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
         <button className="btn-primary w-full" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
@@ -243,9 +251,9 @@ function Overview({ role, events, tasks }: { role: Role; events: Event[]; tasks:
   return (
     <>
       <div>
-        <p className="text-sm font-semibold text-cyan-300">Operations</p>
-        <h1 className="mt-1 text-2xl font-semibold text-white">Control plane</h1>
-        <p className="mt-2 text-sm text-slate-400">Role-aware access to the V1 event, team, task and review workflow.</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Operations</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Control plane</h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-400">Role-aware access to the V1 event, team, task and review workflow.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <Metric label="Your role" value={role} />
@@ -253,10 +261,13 @@ function Overview({ role, events, tasks }: { role: Role; events: Event[]; tasks:
         <Metric label="Visible open tasks" value={String(openTasks)} />
       </div>
       <div className="panel p-5">
-        <h2 className="font-semibold text-white">Workflow</h2>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-white">Workflow</h2>
+          <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">Live</span>
+        </div>
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-300">
           {["Event", "Team", "Task", "Submission", "Review", "Audit"].map((item, index) => (
-            <span key={item} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">{index + 1}. {item}</span>
+            <span key={item} className="rounded-xl border border-slate-700/80 bg-slate-950/80 px-3 py-2 shadow-[inset_0_1px_0_rgba(148,163,184,0.08)]">{index + 1}. {item}</span>
           ))}
         </div>
       </div>
@@ -265,7 +276,12 @@ function Overview({ role, events, tasks }: { role: Role; events: Event[]; tasks:
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="panel p-5"><div className="text-xs uppercase tracking-wider text-slate-500">{label}</div><div className="mt-2 text-2xl font-semibold text-white">{value}</div></div>;
+  return (
+    <div className="metric-card">
+      <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</div>
+      <div className="mt-3 text-3xl font-semibold tracking-tight text-white">{value}</div>
+    </div>
+  );
 }
 
 function EventsPanel({ role, events, selectedEvent, onSelect, onRefresh, onMessage }: {
@@ -328,31 +344,36 @@ function EventsPanel({ role, events, selectedEvent, onSelect, onRefresh, onMessa
     <section className="space-y-5">
       <PanelTitle title="Events" description="Select an event to drive the team and task views." />
       <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-        <div className="panel divide-y divide-slate-800">
-          {events.map((event) => (
-            <button key={event.id} onClick={() => onSelect(event.id)} className={`block w-full px-5 py-4 text-left ${selectedEvent?.id === event.id ? "bg-slate-800/70" : "hover:bg-slate-900"}`}>
-              <div className="flex items-center justify-between gap-3"><span className="font-medium text-white">{event.name}</span><StateBadge state={event.state} /></div>
-              <p className="mt-1 text-xs text-slate-500">{new Date(event.starts_at).toLocaleString()} → {new Date(event.ends_at).toLocaleString()}</p>
-            </button>
-          ))}
-          {!events.length && <div className="p-6 text-sm text-slate-500">No events visible for this account.</div>}
+        <div className="panel overflow-hidden">
+          <div className="divide-y divide-slate-800">
+            {events.map((event) => (
+              <button key={event.id} onClick={() => onSelect(event.id)} className={`block w-full px-5 py-4 text-left transition-all duration-200 ${selectedEvent?.id === event.id ? "bg-slate-800/80 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)]" : "hover:bg-slate-900/80"}`}>
+                <div className="flex items-center justify-between gap-3"><span className="font-medium text-white">{event.name}</span><StateBadge state={event.state} /></div>
+                <p className="mt-2 text-xs text-slate-500">{new Date(event.starts_at).toLocaleString()} → {new Date(event.ends_at).toLocaleString()}</p>
+              </button>
+            ))}
+            {!events.length && <div className="p-6 text-sm text-slate-500">No events visible for this account.</div>}
+          </div>
         </div>
 
         {role === "ADMIN" && (
-          <form onSubmit={create} className="panel space-y-3 p-5">
-            <h2 className="font-semibold text-white">Create event</h2>
+          <form onSubmit={create} className="panel space-y-4 p-5">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-white">Create event</h2>
+              <span className="rounded-full border border-slate-700 bg-slate-950/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Admin</span>
+            </div>
             <input className="input" placeholder="Event name" value={name} onChange={(e) => setName(e.target.value)} required />
             <textarea className="input min-h-24" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
             <DateTimeField label="Start" value={startsAt} onChange={setStartsAt} />
             <DateTimeField label="End" value={endsAt} onChange={setEndsAt} min={startsAt} />
-            {dateError && <p className="rounded-lg border border-rose-900 bg-rose-950/40 px-3 py-2 text-sm text-rose-300">{dateError}</p>}
+            {dateError && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{dateError}</p>}
             <button className="btn-primary w-full" disabled={busy}>{busy ? "Creating…" : "Create event"}</button>
           </form>
         )}
       </div>
       {selectedEvent && <div className="panel p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="font-semibold text-white">{selectedEvent.name}</h2><p className="mt-1 text-sm text-slate-400">{selectedEvent.description || "No description."}</p></div>
+          <div><h2 className="text-lg font-semibold text-white">{selectedEvent.name}</h2><p className="mt-1 text-sm text-slate-400">{selectedEvent.description || "No description."}</p></div>
           <div className="flex flex-wrap gap-2">
             {EVENT_TRANSITIONS[selectedEvent.state].map((next) => (
               <button key={next} className={next === "CANCELLED" ? "btn-danger" : "btn-secondary"} onClick={() => transition(next)} disabled={role === "MEMBER"}>{next}</button>
@@ -391,7 +412,7 @@ function DateTimeField({
     <div className="space-y-2">
       <span className="block text-sm font-medium text-slate-300">{label}</span>
       <div className="grid grid-cols-[1fr_0.8fr] gap-2">
-        <label className="relative">
+        <label className="field-shell">
           <span className="sr-only">{label} date</span>
           <input
             className="input w-full"
@@ -402,7 +423,7 @@ function DateTimeField({
             required
           />
         </label>
-        <label className="relative">
+        <label className="field-shell">
           <span className="sr-only">{label} time</span>
           <input
             className="input w-full"
@@ -462,13 +483,15 @@ function TeamsPanel({ role, event, teams, selectedTeam, onSelect, onRefresh, onM
       <PanelTitle title="Teams" description={event ? `Teams for ${event.name}` : "Select an event first."} />
       {!event ? <EmptyState text="Select an event from the Events view." /> : (
         <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
-          <div className="panel divide-y divide-slate-800">
-            {teams.map((team) => <button key={team.id} onClick={() => onSelect(team.id)} className={`block w-full px-5 py-4 text-left ${selectedTeam?.id === team.id ? "bg-slate-800/70" : "hover:bg-slate-900"}`}><div className="font-medium text-white">{team.name}</div><div className="mt-1 text-xs text-slate-500">{team.id}</div></button>)}
-            {!teams.length && <div className="p-6 text-sm text-slate-500">No teams visible for this event.</div>}
+          <div className="panel overflow-hidden">
+            <div className="divide-y divide-slate-800">
+              {teams.map((team) => <button key={team.id} onClick={() => onSelect(team.id)} className={`block w-full px-5 py-4 text-left transition-all duration-200 ${selectedTeam?.id === team.id ? "bg-slate-800/80 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)]" : "hover:bg-slate-900/80"}`}><div className="font-medium text-white">{team.name}</div><div className="mt-1 text-xs text-slate-500">{team.id}</div></button>)}
+              {!teams.length && <div className="p-6 text-sm text-slate-500">No teams visible for this event.</div>}
+            </div>
           </div>
           <div className="space-y-5">
-            {role === "ADMIN" && <form onSubmit={create} className="panel space-y-3 p-5"><h2 className="font-semibold text-white">Create team</h2><input className="input" placeholder="Team name" value={name} onChange={(e) => setName(e.target.value)} required /><button className="btn-primary w-full" disabled={busy}>{busy ? "Creating…" : "Create team"}</button></form>}
-            {selectedTeam && <div className="panel p-5"><div className="flex items-center justify-between"><h2 className="font-semibold text-white">{selectedTeam.name}</h2><span className="text-xs text-slate-500">{members.length} members</span></div><div className="mt-4 space-y-2">{members.map((member) => <div key={member.user_id} className="flex items-center justify-between rounded-lg bg-slate-950 p-3 text-xs"><div><div className="text-slate-200">{member.user_id}</div><div className="text-slate-500">{member.membership_role}</div></div>{role !== "MEMBER" && <button className="text-rose-400 hover:text-rose-300" onClick={() => removeMember(member.user_id)}>Remove</button>}</div>)}</div>{role !== "MEMBER" && <form onSubmit={addMember} className="mt-4 space-y-2 border-t border-slate-800 pt-4"><input className="input" placeholder="User UUID" value={memberId} onChange={(e) => setMemberId(e.target.value)} required /><div className="flex gap-2"><select className="input" value={memberRole} onChange={(e) => setMemberRole(e.target.value as "LEAD" | "MEMBER")}><option value="MEMBER">MEMBER</option><option value="LEAD">LEAD</option></select><button className="btn-primary">Add</button></div></form>}</div>}
+            {role === "ADMIN" && <form onSubmit={create} className="panel space-y-3 p-5"><h2 className="text-lg font-semibold text-white">Create team</h2><input className="input" placeholder="Team name" value={name} onChange={(e) => setName(e.target.value)} required /><button className="btn-primary w-full" disabled={busy}>{busy ? "Creating…" : "Create team"}</button></form>}
+            {selectedTeam && <div className="panel p-5"><div className="flex items-center justify-between"><h2 className="font-semibold text-white">{selectedTeam.name}</h2><span className="text-xs text-slate-500">{members.length} members</span></div><div className="mt-4 space-y-2">{members.map((member) => <div key={member.user_id} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs"><div><div className="text-slate-200">{member.user_id}</div><div className="text-slate-500">{member.membership_role}</div></div>{role !== "MEMBER" && <button className="text-rose-400 hover:text-rose-300" onClick={() => removeMember(member.user_id)}>Remove</button>}</div>)}</div>{role !== "MEMBER" && <form onSubmit={addMember} className="mt-4 space-y-2 border-t border-slate-800 pt-4"><input className="input" placeholder="User UUID" value={memberId} onChange={(e) => setMemberId(e.target.value)} required /><div className="flex gap-2"><select className="input" value={memberRole} onChange={(e) => setMemberRole(e.target.value as "LEAD" | "MEMBER")}><option value="MEMBER">MEMBER</option><option value="LEAD">LEAD</option></select><button className="btn-primary">Add</button></div></form>}</div>}
           </div>
         </div>
       )}
@@ -518,13 +541,15 @@ function TasksPanel({ role, event, team, tasks, selectedTask, userId, onSelect, 
       <PanelTitle title="Tasks" description={team ? `Tasks for ${team.name}` : "Select a team first."} />
       {!team ? <EmptyState text="Select a team from the Teams view." /> : (
         <div className="grid gap-5 lg:grid-cols-[1fr_430px]">
-          <div className="panel divide-y divide-slate-800">
-            {tasks.map((task) => <button key={task.id} onClick={() => onSelect(task.id)} className={`block w-full px-5 py-4 text-left ${selectedTask?.id === task.id ? "bg-slate-800/70" : "hover:bg-slate-900"}`}><div className="flex items-center justify-between gap-3"><span className="font-medium text-white">{task.title}</span><StateBadge state={task.state} /></div><div className="mt-1 text-xs text-slate-500">Assignee: {task.assignee_id ?? "unassigned"}</div></button>)}
-            {!tasks.length && <div className="p-6 text-sm text-slate-500">No tasks visible for this team.</div>}
+          <div className="panel overflow-hidden">
+            <div className="divide-y divide-slate-800">
+              {tasks.map((task) => <button key={task.id} onClick={() => onSelect(task.id)} className={`block w-full px-5 py-4 text-left transition-all duration-200 ${selectedTask?.id === task.id ? "bg-slate-800/80 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)]" : "hover:bg-slate-900/80"}`}><div className="flex items-center justify-between gap-3"><span className="font-medium text-white">{task.title}</span><StateBadge state={task.state} /></div><div className="mt-1 text-xs text-slate-500">Assignee: {task.assignee_id ?? "unassigned"}</div></button>)}
+              {!tasks.length && <div className="p-6 text-sm text-slate-500">No tasks visible for this team.</div>}
+            </div>
           </div>
           <div className="space-y-5">
-            {canCreate && <form onSubmit={create} className="panel space-y-3 p-5"><h2 className="font-semibold text-white">Create task</h2><input className="input" placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} required /><textarea className="input min-h-24" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} /><input className="input" placeholder="Assignee user UUID" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} required /><button className="btn-primary w-full">Create task</button></form>}
-            {selectedTask && <div className="panel space-y-4 p-5"><div><h2 className="font-semibold text-white">{selectedTask.title}</h2><p className="mt-2 text-sm text-slate-400">{selectedTask.description || "No description."}</p></div><div className="flex flex-wrap gap-2">{allowed.map((next) => <button key={next} className="btn-secondary" onClick={() => transition(next)}>{next}</button>)}</div>{role === "MEMBER" && selectedTask.assignee_id === userId && selectedTask.state === "IN_PROGRESS" && <form onSubmit={submit} className="space-y-2 border-t border-slate-800 pt-4"><textarea className="input min-h-28" placeholder="Submission content or reference" value={submission} onChange={(e) => setSubmission(e.target.value)} required /><button className="btn-primary w-full">Submit work</button></form>}</div>}
+            {canCreate && <form onSubmit={create} className="panel space-y-3 p-5"><h2 className="text-lg font-semibold text-white">Create task</h2><input className="input" placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} required /><textarea className="input min-h-24" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} /><input className="input" placeholder="Assignee user UUID" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} required /><button className="btn-primary w-full">Create task</button></form>}
+            {selectedTask && <div className="panel space-y-4 p-5"><div><h2 className="text-lg font-semibold text-white">{selectedTask.title}</h2><p className="mt-2 text-sm text-slate-400">{selectedTask.description || "No description."}</p></div><div className="flex flex-wrap gap-2">{allowed.map((next) => <button key={next} className="btn-secondary" onClick={() => transition(next)}>{next}</button>)}</div>{role === "MEMBER" && selectedTask.assignee_id === userId && selectedTask.state === "IN_PROGRESS" && <form onSubmit={submit} className="space-y-2 border-t border-slate-800 pt-4"><textarea className="input min-h-28" placeholder="Submission content or reference" value={submission} onChange={(e) => setSubmission(e.target.value)} required /><button className="btn-primary w-full">Submit work</button></form>}</div>}
           </div>
         </div>
       )}
@@ -553,7 +578,7 @@ function ReviewsPanel({ role, task, submissions, onRefresh, onMessage }: {
 }
 
 function PanelTitle({ title, description }: { title: string; description: string }) {
-  return <div><h1 className="text-2xl font-semibold text-white">{title}</h1><p className="mt-2 text-sm text-slate-400">{description}</p></div>;
+  return <div><h1 className="text-2xl font-semibold tracking-tight text-white">{title}</h1><p className="mt-2 text-sm text-slate-400">{description}</p></div>;
 }
 
 function EmptyState({ text }: { text: string }) {
@@ -561,7 +586,7 @@ function EmptyState({ text }: { text: string }) {
 }
 
 function StateBadge({ state }: { state: string }) {
-  return <span className="rounded-full border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-300">{state}</span>;
+  return <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-300">{state}</span>;
 }
 
 export default App;

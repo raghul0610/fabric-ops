@@ -1,10 +1,15 @@
 import os
 from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
 
+load_dotenv()
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
+from app.db import engine
 from app.main import app
 
 
@@ -64,6 +69,23 @@ def _headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _skip_if_dependencies_unavailable() -> None:
+    try:
+        httpx.get(
+            f"{SUPABASE_URL.rstrip('/')}/auth/v1/settings",
+            headers={"apikey": SUPABASE_PUBLISHABLE_KEY},
+            timeout=5,
+        )
+    except httpx.RequestError as exc:
+        pytest.skip(f"Supabase is unavailable: {exc}")
+
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        pytest.skip(f"Database is unavailable: {exc}")
+
+
 @pytest.mark.integration
 def test_v1_admin_to_member_to_review_workflow() -> None:
     missing = _missing_configuration()
@@ -72,6 +94,8 @@ def test_v1_admin_to_member_to_review_workflow() -> None:
             "V1 integration workflow requires environment variables: "
             + ", ".join(missing)
         )
+
+    _skip_if_dependencies_unavailable()
 
     admin_email, admin_password = ROLE_CREDENTIALS["admin"]
     lead_email, lead_password = ROLE_CREDENTIALS["lead"]
