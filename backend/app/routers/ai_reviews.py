@@ -25,6 +25,7 @@ def get_ai_review_service(db=Depends(get_db)) -> AiReviewService:
     return AiReviewService(
         SubmissionRepository(db),
         GeminiSubmissionReviewer(settings.gemini_api_key, settings.gemini_model),
+        settings.gemini_model,
     )
 
 
@@ -38,3 +39,15 @@ def ai_review_submission(
     service: AiReviewService = Depends(get_ai_review_service),
 ):
     return service.review_submission(submission_id, user.id, user.role)
+
+
+@router.get(
+    "/submissions/{submission_id}/ai-reviews",
+    response_model=list[AiReviewResponse],
+)
+def list_ai_reviews(
+    submission_id: UUID,
+    user: CurrentUser = Depends(require_role("ADMIN", "LEAD")),
+    service: AiReviewService = Depends(get_ai_review_service),
+):
+    return service.list_evaluations(submission_id, user.id, user.role)
