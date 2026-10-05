@@ -9,6 +9,7 @@ class FakeRepository:
         self.submission_id = uuid4()
         self.task_id = uuid4()
         self.team_id = uuid4()
+        self.saved = []
 
     def get(self, submission_id):
         if submission_id != self.submission_id:
@@ -34,6 +35,24 @@ class FakeRepository:
     def is_team_member(self, team_id, user_id):
         return True
 
+    def create_ai_evaluation(self, **kwargs):
+        self.saved.append(kwargs)
+        return {
+            "id": uuid4(),
+            **kwargs,
+            "created_at": "2026-10-05T00:00:00Z",
+        }
+
+    def list_ai_evaluations(self, submission_id):
+        return self.saved
+
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
 
 class FakeReviewer:
     def __init__(self):
@@ -50,22 +69,37 @@ class FakeReviewer:
         )
 
 
-def test_ai_review_uses_submission_and_task_context():
+def test_ai_review_uses_submission_and_task_context_and_persists_result():
     repository = FakeRepository()
     reviewer = FakeReviewer()
-    service = AiReviewService(repository, reviewer)
+    service = AiReviewService(repository, reviewer, "gemini-3.8-flash")
 
     result = service.review_submission(repository.submission_id, uuid4(), "LEAD")
 
-    assert result.recommendation == "APPROVE"
+    assert result["recommendation"] == "APPROVE"
+    assert result["score"] == 90
+    assert result["model"] == "gemini-3.8-flash"
+    assert len(repository.saved) == 1
     assert reviewer.received.task_title == "Implement API"
     assert "API" in reviewer.received.submission_content
+
+
+def test_persisted_evaluations_are_available_to_reviewers():
+    repository = FakeRepository()
+    reviewer = FakeReviewer()
+    service = AiReviewService(repository, reviewer, "gemini-3.8-flash")
+    actor_id = uuid4()
+
+    service.review_submission(repository.submission_id, actor_id, "LEAD")
+    evaluations = service.list_evaluations(repository.submission_id, actor_id, "LEAD")
+
+    assert len(evaluations) == 1
 
 
 def test_members_cannot_request_ai_review():
     repository = FakeRepository()
     reviewer = FakeReviewer()
-    service = AiReviewService(repository, reviewer)
+    service = AiReviewService(repository, reviewer, "gemini-3.8-flash")
 
     try:
         service.review_submission(repository.submission_id, uuid4(), "MEMBER")
