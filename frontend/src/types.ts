@@ -55,3 +55,15 @@ export interface Review {
   feedback: string | null;
   created_at: string;
 }
+export interface AiEvaluation {
+  id: string;
+  submission_id: string;
+  requested_by: string;
+  model: string;
+  score: number;
+  recommendation: "APPROVE" | "REJECT" | "REVIEW";
+  summary: string;
+  strengths: string[];
+  issues: string[];
+  created_at: string;
+}
