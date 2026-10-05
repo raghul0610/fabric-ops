@@ -10,7 +10,7 @@ class AiReviewService:
     def __init__(
         self,
         repository: SubmissionRepository,
-        reviewer: SubmissionReviewer,
+        reviewer: SubmissionReviewer | None,
         model: str,
     ) -> None:
         self.repository = repository
@@ -47,6 +47,12 @@ class AiReviewService:
         actor_role: str,
     ):
         submission, task = self._authorize(submission_id, actor_id, actor_role)
+
+        if self.reviewer is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AI review is not configured",
+            )
 
         if str(task["state"]) != "SUBMITTED":
             raise HTTPException(
