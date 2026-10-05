@@ -18,6 +18,16 @@ class SubmissionRepository:
             {"task_id": str(task_id)},
         ).mappings().first()
 
+    def get_task_for_ai(self, task_id: UUID):
+        return self.db.execute(
+            text("""
+                SELECT id, team_id, title, description, state
+                FROM public.tasks
+                WHERE id = :task_id
+            """),
+            {"task_id": str(task_id)},
+        ).mappings().first()
+
     def is_team_member(self, team_id: UUID, user_id: UUID) -> bool:
         return self.db.execute(
             text("""
