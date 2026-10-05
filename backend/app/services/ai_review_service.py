@@ -2,7 +2,12 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 
-from app.ai.reviewer import AiReviewResult, SubmissionReviewInput, SubmissionReviewer
+from app.ai.reviewer import (
+    AiReviewProviderError,
+    SubmissionReviewInput,
+    SubmissionReviewer,
+)
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.submission_repository import SubmissionRepository
 
 
@@ -12,10 +17,14 @@ class AiReviewService:
         repository: SubmissionRepository,
         reviewer: SubmissionReviewer | None,
         model: str,
+        audit: AuditRepository,
+        cooldown_seconds: int = 10,
     ) -> None:
         self.repository = repository
         self.reviewer = reviewer
         self.model = model
+        self.audit = audit
+        self.cooldown_seconds = cooldown_seconds
 
     def _authorize(self, submission_id: UUID, actor_id: UUID, actor_role: str):
         if actor_role not in {"ADMIN", "LEAD"}:
@@ -60,13 +69,35 @@ class AiReviewService:
                 detail="Only submitted tasks can be evaluated",
             )
 
-        result = self.reviewer.review(
-            SubmissionReviewInput(
+        if self.cooldown_seconds > 0:
+            recent_count = self.repository.count_recent_ai_evaluations(
+                submission_id,
+                actor_id,
+                self.cooldown_seconds,
+            )
+            if recent_count:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Please wait {self.cooldown_seconds} seconds before requesting another AI evaluation",
+                )
+
+        try:
+            payload = SubmissionReviewInput(
                 task_title=task["title"],
                 task_description=task["description"],
                 submission_content=submission["content"],
             )
-        )
+            result = self.reviewer.review(payload)
+        except AiReviewProviderError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AI review provider is temporarily unavailable",
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Submission is not valid for AI evaluation",
+            ) from exc
 
         try:
             evaluation = self.repository.create_ai_evaluation(
@@ -78,6 +109,18 @@ class AiReviewService:
                 summary=result.summary,
                 strengths=result.strengths,
                 issues=result.issues,
+            )
+            self.audit.record(
+                actor_id=actor_id,
+                action="AI_REVIEW_REQUESTED",
+                entity_type="submission",
+                entity_id=submission_id,
+                metadata={
+                    "evaluation_id": str(evaluation["id"]),
+                    "model": self.model,
+                    "score": result.score,
+                    "recommendation": result.recommendation,
+                },
             )
             self.repository.commit()
             return evaluation
