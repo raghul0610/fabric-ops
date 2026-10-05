@@ -6,6 +6,7 @@ from app.ai.gemini_reviewer import GeminiSubmissionReviewer
 from app.auth import CurrentUser, require_role
 from app.config import get_settings
 from app.db import get_db
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.submission_repository import SubmissionRepository
 from app.schemas.ai_review import AiReviewResponse
 from app.services.ai_review_service import AiReviewService
@@ -17,7 +18,11 @@ router = APIRouter(tags=["ai"])
 def get_ai_review_service(db=Depends(get_db)) -> AiReviewService:
     settings = get_settings()
     reviewer = (
-        GeminiSubmissionReviewer(settings.gemini_api_key, settings.gemini_model)
+        GeminiSubmissionReviewer(
+            settings.gemini_api_key,
+            settings.gemini_model,
+            settings.gemini_timeout_ms,
+        )
         if settings.gemini_api_key
         else None
     )
@@ -26,6 +31,8 @@ def get_ai_review_service(db=Depends(get_db)) -> AiReviewService:
         SubmissionRepository(db),
         reviewer,
         settings.gemini_model,
+        AuditRepository(db),
+        settings.ai_review_cooldown_seconds,
     )
 
 
