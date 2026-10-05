@@ -41,6 +41,20 @@ class EventRepository:
             """)
         ).mappings().all()
 
+    def list_for_user(self, user_id: UUID):
+        return self.db.execute(
+            text("""
+                SELECT DISTINCT e.id, e.name, e.description, e.state,
+                                e.starts_at, e.ends_at, e.created_at, e.updated_at
+                FROM public.events e
+                JOIN public.teams t ON t.event_id = e.id
+                JOIN public.team_members tm ON tm.team_id = t.id
+                WHERE tm.user_id = :user_id
+                ORDER BY e.starts_at ASC
+            """),
+            {"user_id": str(user_id)},
+        ).mappings().all()
+
     def get(self, event_id: UUID):
         return self.db.execute(
             text("""
@@ -50,6 +64,19 @@ class EventRepository:
             """),
             {"event_id": str(event_id)},
         ).mappings().first()
+
+    def is_team_member_of_event(self, event_id: UUID, user_id: UUID) -> bool:
+        return self.db.execute(
+            text("""
+                SELECT 1
+                FROM public.teams t
+                JOIN public.team_members tm ON tm.team_id = t.id
+                WHERE t.event_id = :event_id
+                  AND tm.user_id = :user_id
+                LIMIT 1
+            """),
+            {"event_id": str(event_id), "user_id": str(user_id)},
+        ).first() is not None
 
     def update_state(self, event_id: UUID, state: str):
         row = self.db.execute(
