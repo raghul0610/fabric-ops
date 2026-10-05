@@ -241,3 +241,99 @@ def test_v1_admin_to_member_to_review_workflow() -> None:
     assert completed_event.json()["state"] == "COMPLETED"
 
     assert admin_id
+
+
+    # Negative-path authorization checks: users must not cross event scope.
+    unrelated_event = client.post(
+        "/events",
+        headers=_headers(admin_token),
+        json={
+            "name": "FABRIC V1 Authorization Boundary",
+            "description": "Event intentionally outside the lead/member team scope",
+            "starts_at": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
+            "ends_at": (datetime.now(timezone.utc) + timedelta(days=3, hours=2)).isoformat(),
+        },
+    )
+    assert unrelated_event.status_code == 201, unrelated_event.text
+    unrelated_event_id = unrelated_event.json()["id"]
+
+    unrelated_event_get_by_lead = client.get(
+        f"/events/{unrelated_event_id}",
+        headers=_headers(lead_token),
+    )
+    assert unrelated_event_get_by_lead.status_code == 403, unrelated_event_get_by_lead.text
+
+    unrelated_event_get_by_member = client.get(
+        f"/events/{unrelated_event_id}",
+        headers=_headers(member_token),
+    )
+    assert unrelated_event_get_by_member.status_code == 403, unrelated_event_get_by_member.text
+
+    unrelated_event_state_by_lead = client.patch(
+        f"/events/{unrelated_event_id}/state",
+        headers=_headers(lead_token),
+        json={"state": "PLANNED"},
+    )
+    assert unrelated_event_state_by_lead.status_code == 403, unrelated_event_state_by_lead.text
+
+    lead_events = client.get("/events", headers=_headers(lead_token))
+    member_events = client.get("/events", headers=_headers(member_token))
+    admin_events = client.get("/events", headers=_headers(admin_token))
+
+    assert lead_events.status_code == 200, lead_events.text
+    assert member_events.status_code == 200, member_events.text
+    assert admin_events.status_code == 200, admin_events.text
+    assert unrelated_event_id not in {event["id"] for event in lead_events.json()}
+    assert unrelated_event_id not in {event["id"] for event in member_events.json()}
+    assert unrelated_event_id in {event["id"] for event in admin_events.json()}
+
+    unrelated_team = client.post(
+        f"/events/{unrelated_event_id}/teams",
+        headers=_headers(admin_token),
+        json={"name": "Unrelated Scope Team"},
+    )
+    assert unrelated_team.status_code == 201, unrelated_team.text
+    unrelated_team_id = unrelated_team.json()["id"]
+
+    lead_teams = client.get(
+        f"/events/{unrelated_event_id}/teams",
+        headers=_headers(lead_token),
+    )
+    member_teams = client.get(
+        f"/events/{unrelated_event_id}/teams",
+        headers=_headers(member_token),
+    )
+    assert lead_teams.status_code == 200, lead_teams.text
+    assert member_teams.status_code == 200, member_teams.text
+    assert lead_teams.json() == []
+    assert member_teams.json() == []
+
+    unrelated_team_get = client.get(
+        f"/teams/{unrelated_team_id}",
+        headers=_headers(lead_token),
+    )
+    assert unrelated_team_get.status_code == 403, unrelated_team_get.text
+
+    unrelated_task = client.post(
+        f"/events/{unrelated_event_id}/teams/{unrelated_team_id}/tasks",
+        headers=_headers(admin_token),
+        json={
+            "title": "Unrelated scope task",
+            "description": "Authorization regression task",
+            "assignee_id": member_id,
+        },
+    )
+    assert unrelated_task.status_code == 201, unrelated_task.text
+    unrelated_task_id = unrelated_task.json()["id"]
+
+    unrelated_task_get = client.get(
+        f"/tasks/{unrelated_task_id}",
+        headers=_headers(member_token),
+    )
+    assert unrelated_task_get.status_code == 403, unrelated_task_get.text
+
+    member_ai_review = client.post(
+        f"/submissions/{submission_id}/ai-review",
+        headers=_headers(member_token),
+    )
+    assert member_ai_review.status_code == 403, member_ai_review.text
