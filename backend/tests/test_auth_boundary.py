@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.auth import AuthenticatedUser, CurrentUser, get_current_app_user, get_current_user
 from app.db import get_db
@@ -74,6 +75,31 @@ def test_authenticated_user_without_app_profile_is_forbidden() -> None:
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Application user is not provisioned"
+
+
+def test_database_failure_returns_service_unavailable_with_cors() -> None:
+    user_id = uuid4()
+
+    def unavailable_db():
+        raise SQLAlchemyError("database unavailable")
+
+    app.dependency_overrides[get_current_user] = lambda: AuthenticatedUser(id=user_id)
+    app.dependency_overrides[get_db] = unavailable_db
+
+    try:
+        response = client.get(
+            "/events/me",
+            headers={
+                "Authorization": "Bearer test-token",
+                "Origin": "http://localhost:5173",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Database service unavailable"}
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
 
 
 def test_member_cannot_create_event() -> None:

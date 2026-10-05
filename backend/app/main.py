@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
 from app.routers.ai_reviews import router as ai_reviews_router
@@ -13,6 +15,17 @@ from app.routers.teams import router as teams_router
 settings = get_settings()
 
 app = FastAPI(title="FABRIC Ops API", version="0.1.0")
+
+
+@app.exception_handler(SQLAlchemyError)
+async def database_error_handler(
+    _: Request,
+    exc: SQLAlchemyError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Database service unavailable"},
+    )
 
 app.add_middleware(
     CORSMiddleware,

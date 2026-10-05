@@ -1,11 +1,14 @@
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     database_url: str
-    supabase_url: str
+    supabase_url: str = Field(
+        validation_alias=AliasChoices("SUPABASE_URL", "VITE_SUPABASE_URL")
+    )
     supabase_publishable_key: str
     frontend_origin: str = "http://localhost:5173"
     gemini_api_key: str | None = None

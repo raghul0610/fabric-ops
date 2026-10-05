@@ -1,8 +1,11 @@
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).parents[2] / ".env")
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -13,7 +16,7 @@ from app.db import engine
 from app.main import app
 
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("VITE_SUPABASE_URL")
 SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
