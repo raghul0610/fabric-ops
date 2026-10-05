@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_publishable_key: str
     frontend_origin: str = "http://localhost:5173"
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-6-luna"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
