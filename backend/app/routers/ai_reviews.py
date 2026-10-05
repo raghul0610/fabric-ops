@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.ai.openai_reviewer import OpenAISubmissionReviewer
+from app.ai.gemini_reviewer import GeminiSubmissionReviewer
 from app.auth import CurrentUser, require_role
 from app.config import get_settings
 from app.db import get_db
@@ -16,14 +16,15 @@ router = APIRouter(tags=["ai"])
 
 def get_ai_review_service(db=Depends(get_db)) -> AiReviewService:
     settings = get_settings()
-    if not settings.openai_api_key:
+    if not settings.gemini_api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AI review is not configured",
         )
+
     return AiReviewService(
         SubmissionRepository(db),
-        OpenAISubmissionReviewer(settings.openai_api_key, settings.openai_model),
+        GeminiSubmissionReviewer(settings.gemini_api_key, settings.gemini_model),
     )
 
 
