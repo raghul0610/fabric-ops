@@ -6,9 +6,9 @@ Introduce AI as a bounded backend capability without changing the existing workf
 
 ## Implemented
 
-- Added a submission-reviewer AI interface.
-- Added an OpenAI Responses API adapter.
-- Added structured Pydantic validation for AI review results.
+- Added a provider-independent submission reviewer interface.
+- Added a Gemini API adapter using the official Google GenAI Python SDK.
+- Added structured JSON output validation with Pydantic.
 - Added a reviewer-only endpoint:
   POST /submissions/{submission_id}/ai-review
 - LEAD access remains limited to their team.
@@ -19,7 +19,7 @@ Introduce AI as a bounded backend capability without changing the existing workf
 
 ## Architecture
 
-Submission -> FastAPI authorization -> AiReviewService -> SubmissionReviewer -> OpenAI
+Submission -> FastAPI authorization -> AiReviewService -> SubmissionReviewer -> Gemini
 
 The reviewer is an interface, so the provider can be replaced without changing domain logic.
 
@@ -27,8 +27,8 @@ The reviewer is an interface, so the provider can be replaced without changing d
 
 Add these variables to the backend environment when enabling the provider:
 
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-6-luna
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.8-flash
 
 The API key must remain backend-only.
 
