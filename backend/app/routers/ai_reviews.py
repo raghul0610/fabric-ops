@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 from app.ai.gemini_reviewer import GeminiSubmissionReviewer
 from app.auth import CurrentUser, require_role
