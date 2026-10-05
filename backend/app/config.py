@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     database_url: str
+    database_sslmode: str = "require"
     supabase_url: str
     supabase_publishable_key: str
     frontend_origin: str = "http://localhost:5173"
