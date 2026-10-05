@@ -16,15 +16,15 @@ router = APIRouter(tags=["ai"])
 
 def get_ai_review_service(db=Depends(get_db)) -> AiReviewService:
     settings = get_settings()
-    if not settings.gemini_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI review is not configured",
-        )
+    reviewer = (
+        GeminiSubmissionReviewer(settings.gemini_api_key, settings.gemini_model)
+        if settings.gemini_api_key
+        else None
+    )
 
     return AiReviewService(
         SubmissionRepository(db),
-        GeminiSubmissionReviewer(settings.gemini_api_key, settings.gemini_model),
+        reviewer,
         settings.gemini_model,
     )
 
