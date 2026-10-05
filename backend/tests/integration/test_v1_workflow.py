@@ -328,7 +328,7 @@ def test_v1_admin_to_member_to_review_workflow() -> None:
 
     unrelated_task_get = client.get(
         f"/tasks/{unrelated_task_id}",
-        headers=_headers(member_token),
+        headers=_headers(lead_token),
     )
     assert unrelated_task_get.status_code == 403, unrelated_task_get.text
 
