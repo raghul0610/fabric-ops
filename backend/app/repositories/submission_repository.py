@@ -1,4 +1,5 @@
 from uuid import UUID
+import json
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -114,6 +115,52 @@ class SubmissionRepository:
                 FROM public.reviews
                 WHERE submission_id = :submission_id
                 ORDER BY created_at ASC
+            """),
+            {"submission_id": str(submission_id)},
+        ).mappings().all()
+
+    def create_ai_evaluation(
+        self,
+        submission_id: UUID,
+        requested_by: UUID,
+        model: str,
+        score: int,
+        recommendation: str,
+        summary: str,
+        strengths: list[str],
+        issues: list[str],
+    ):
+        return self.db.execute(
+            text("""
+                INSERT INTO public.ai_evaluations
+                    (submission_id, requested_by, model, score, recommendation,
+                     summary, strengths, issues)
+                VALUES
+                    (:submission_id, :requested_by, :model, :score, :recommendation,
+                     :summary, CAST(:strengths AS jsonb), CAST(:issues AS jsonb))
+                RETURNING id, submission_id, requested_by, model, score,
+                          recommendation, summary, strengths, issues, created_at
+            """),
+            {
+                "submission_id": str(submission_id),
+                "requested_by": str(requested_by),
+                "model": model,
+                "score": score,
+                "recommendation": recommendation,
+                "summary": summary,
+                "strengths": json.dumps(strengths),
+                "issues": json.dumps(issues),
+            },
+        ).mappings().one()
+
+    def list_ai_evaluations(self, submission_id: UUID):
+        return self.db.execute(
+            text("""
+                SELECT id, submission_id, requested_by, model, score,
+                       recommendation, summary, strengths, issues, created_at
+                FROM public.ai_evaluations
+                WHERE submission_id = :submission_id
+                ORDER BY created_at DESC
             """),
             {"submission_id": str(submission_id)},
         ).mappings().all()
