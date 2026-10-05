@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { supabase } from "./lib/supabase";
 import { api } from "./lib/api";
-import type { Event, EventState, Review, Role, Submission, Task, TaskState, Team, TeamMember } from "./types";
+import type { AiEvaluation, Event, EventState, Review, Role, Submission, Task, TaskState, Team, TeamMember } from "./types";
 
 type SessionUser = { id: string; email?: string | null };
 type View = "overview" | "events" | "teams" | "tasks" | "reviews";
@@ -561,17 +561,144 @@ function ReviewsPanel({ role, task, submissions, onRefresh, onMessage }: {
   role: Role; task: Task | null; submissions: Submission[]; onRefresh: () => Promise<void> | void; onMessage: (m: string) => void;
 }) {
   const [feedback, setFeedback] = useState("");
+  const [evaluations, setEvaluations] = useState<Record<string, AiEvaluation[]>>({});
+  const [aiBusy, setAiBusy] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!task || !submissions.length || role === "MEMBER") {
+      setEvaluations({});
+      return;
+    }
+
+    let cancelled = false;
+    const load = async () => {
+      const entries = await Promise.all(
+        submissions.map(async (submission) => [
+          submission.id,
+          await api.get<AiEvaluation[]>(`/submissions/${submission.id}/ai-reviews`),
+        ] as const),
+      );
+      if (!cancelled) setEvaluations(Object.fromEntries(entries));
+    };
+
+    void load().catch((error) => {
+      if (!cancelled) onMessage(error instanceof Error ? error.message : "Unable to load AI evaluations.");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [task?.id, submissions, role]);
+
   if (!task) return <section className="space-y-5"><PanelTitle title="Reviews" description="Review submissions for the selected task." /><EmptyState text="Select a task from the Tasks view." /></section>;
 
   const review = async (submissionId: string, decision: "APPROVED" | "REJECTED") => {
-    try { await api.post<Review>(`/submissions/${submissionId}/reviews`, { decision, feedback: feedback || null }); setFeedback(""); await onRefresh(); onMessage(`Submission ${decision.toLowerCase()}.`); }
-    catch (error) { onMessage(error instanceof Error ? error.message : "Unable to review submission."); }
+    try {
+      await api.post<Review>(`/submissions/${submissionId}/reviews`, {
+        decision,
+        feedback: feedback || null,
+      });
+      setFeedback("");
+      await onRefresh();
+      onMessage(`Submission ${decision.toLowerCase()}.`);
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Unable to review submission.");
+    }
+  };
+
+  const runAiReview = async (submissionId: string) => {
+    setAiBusy((current) => ({ ...current, [submissionId]: true }));
+    try {
+      const result = await api.post<AiEvaluation>(`/submissions/${submissionId}/ai-review`, {});
+      setEvaluations((current) => ({
+        ...current,
+        [submissionId]: [result, ...(current[submissionId] ?? [])],
+      }));
+      onMessage("AI evaluation generated and persisted. Human review remains authoritative.");
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Unable to run AI evaluation.");
+    } finally {
+      setAiBusy((current) => ({ ...current, [submissionId]: false }));
+    }
   };
 
   return (
     <section className="space-y-5">
       <PanelTitle title="Reviews" description={`${task.title} · ${task.state}`} />
-      {submissions.map((submission) => <div key={submission.id} className="panel p-5"><div className="flex items-center justify-between"><span className="text-xs text-slate-500">{submission.id}</span><span className="text-xs text-slate-500">{new Date(submission.created_at).toLocaleString()}</span></div><p className="mt-4 whitespace-pre-wrap text-sm text-slate-200">{submission.content}</p>{role !== "MEMBER" && task.state === "SUBMITTED" && <div className="mt-4 space-y-3 border-t border-slate-800 pt-4"><textarea className="input min-h-20" placeholder="Review feedback" value={feedback} onChange={(e) => setFeedback(e.target.value)} /><div className="flex gap-2"><button className="btn-primary" onClick={() => review(submission.id, "APPROVED")}>Approve</button><button className="btn-danger" onClick={() => review(submission.id, "REJECTED")}>Reject</button></div></div>}</div>)}
+      {submissions.map((submission) => {
+        const latestAi = evaluations[submission.id]?.[0];
+        const busy = aiBusy[submission.id] ?? false;
+
+        return (
+          <div key={submission.id} className="panel space-y-4 p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-500">{submission.id}</span>
+              <span className="text-xs text-slate-500">{new Date(submission.created_at).toLocaleString()}</span>
+            </div>
+
+            <p className="whitespace-pre-wrap text-sm text-slate-200">{submission.content}</p>
+
+            {role !== "MEMBER" && (
+              <div className="space-y-3 border-t border-slate-800 pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">AI evaluation</h3>
+                    <p className="text-xs text-slate-500">Advisory only. It never changes task state.</p>
+                  </div>
+                  {task.state === "SUBMITTED" && (
+                    <button className="btn-secondary" onClick={() => void runAiReview(submission.id)} disabled={busy}>
+                      {busy ? "Evaluating…" : latestAi ? "Run again" : "Run AI evaluation"}
+                    </button>
+                  )}
+                </div>
+
+                {latestAi && (
+                  <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-cyan-900 bg-cyan-950/40 px-2.5 py-1 text-xs font-semibold text-cyan-300">
+                        Score {latestAi.score}/100
+                      </span>
+                      <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-300">
+                        {latestAi.recommendation}
+                      </span>
+                      <span className="text-xs text-slate-500">{latestAi.model}</span>
+                    </div>
+                    <p className="mt-3 text-sm text-slate-300">{latestAi.summary}</p>
+
+                    {!!latestAi.strengths.length && (
+                      <div className="mt-3">
+                        <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Strengths</div>
+                        <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-300">
+                          {latestAi.strengths.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                      </div>
+                    )}
+
+                    {!!latestAi.issues.length && (
+                      <div className="mt-3">
+                        <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Issues</div>
+                        <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-300">
+                          {latestAi.issues.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {task.state === "SUBMITTED" && (
+                  <>
+                    <textarea className="input min-h-20" placeholder="Review feedback" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
+                    <div className="flex gap-2">
+                      <button className="btn-primary" onClick={() => void review(submission.id, "APPROVED")}>Approve</button>
+                      <button className="btn-danger" onClick={() => void review(submission.id, "REJECTED")}>Reject</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
       {!submissions.length && <EmptyState text="No submissions yet." />}
     </section>
   );
